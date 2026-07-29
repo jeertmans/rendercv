@@ -91,6 +91,9 @@ def process_model(
                     if not entry_id:
                         entry_id = f"pub-{num}"
                     setattr(entry, "id", entry_id)
+                    if hasattr(entry, "title") and entry.title and not getattr(entry, "_numbered", False):
+                        entry.title = f"[{num}] {entry.title}"
+                        setattr(entry, "_numbered", True)
                     pub_id_map[entry_id] = (num, entry_id)
                     pub_id_map[str(num)] = (num, entry_id)
 
