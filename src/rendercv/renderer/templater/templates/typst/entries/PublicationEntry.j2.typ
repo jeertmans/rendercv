@@ -4,7 +4,7 @@
 {% else %}
 {% set first_row_lines = entry.main_column.splitlines()|length %}
 {% endif %}
-#regular-entry(
+[#regular-entry(
   [
 {% for line in entry.main_column.splitlines()[:first_row_lines] %}
     {{ line|indent(4) }}
@@ -25,4 +25,4 @@
 {% endfor %}
   ],
 {% endif %}
-)
+)]{% if entry.id %}<{{ entry.id }}>{% endif %}

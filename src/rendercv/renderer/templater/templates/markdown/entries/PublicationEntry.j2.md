@@ -1,3 +1,4 @@
+{% if entry.id %}<a id="{{ entry.id }}"></a>{% endif %}
 ## {{ entry.main_column.splitlines()[0] }}
 
 {% for line in entry.date_and_location_column.splitlines() %}

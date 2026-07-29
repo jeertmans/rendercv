@@ -1,4 +1,5 @@
 import pathlib
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -50,9 +51,8 @@ def download_photo_from_url(rendercv_model: RenderCVModel) -> None:
 
     if not destination.exists():
         try:
-            with urllib.request.urlopen(url_str, timeout=30) as response:
-                destination.write_bytes(response.read())
-        except (urllib.error.URLError, OSError) as e:
+            urllib.request.urlretrieve(url_str, destination)
+        except Exception as e:
             raise RenderCVUserError(
                 message=f"Failed to download photo from {url_str}: {e}"
             ) from e
@@ -79,11 +79,50 @@ def process_model(
     """
     rendercv_model = rendercv_model.model_copy(deep=True)
 
+    pub_id_map: dict[str, tuple[int, str]] = {}
+    if rendercv_model.cv.rendercv_sections:
+        for section in rendercv_model.cv.rendercv_sections:
+            if section.snake_case_title == "publications" or section.entry_type == "PublicationEntry":
+                for i, entry in enumerate(section.entries):
+                    num = i + 1
+                    entry_id = getattr(entry, "id", None) or getattr(entry, "_id", None)
+                    if not entry_id and hasattr(entry, "model_extra") and entry.model_extra:
+                        entry_id = entry.model_extra.get("id")
+                    if not entry_id:
+                        entry_id = f"pub-{num}"
+                    setattr(entry, "id", entry_id)
+                    pub_id_map[entry_id] = (num, entry_id)
+                    pub_id_map[str(num)] = (num, entry_id)
+
+    citation_pattern = re.compile(r"\\\\?\[\\\\?\[(.*?)\\\\?\]\\\\?\]")
+
+    def process_citations(string: str) -> str:
+        def repl(match: re.Match) -> str:
+            raw_keys = match.group(1).split(",")
+            items = []
+            for k in raw_keys:
+                k = k.strip()
+                if k in pub_id_map:
+                    num, pub_id = pub_id_map[k]
+                    if file_type == "typst":
+                        items.append(f"#link(<{pub_id}>)[{num}]")
+                    else:
+                        items.append(f'<a href="#{pub_id}">{num}</a>')
+                else:
+                    items.append(k)
+            if file_type == "typst":
+                return "#box[#super[" + ", ".join(items) + "]]"
+            else:
+                return "<sup>" + ", ".join(items) + "</sup>"
+
+        return citation_pattern.sub(repl, string)
+
     string_processors: list[Callable[[str], str]] = [
         lambda string: make_keywords_bold(string, rendercv_model.settings.bold_keywords)
     ]
     if file_type == "typst":
         string_processors.extend([markdown_to_typst])
+    string_processors.append(process_citations)
 
     rendercv_model.cv._plain_name = rendercv_model.cv.name
     rendercv_model.cv.name = apply_string_processors(
