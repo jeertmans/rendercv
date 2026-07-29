@@ -29,7 +29,7 @@ build-backend = "uv_build"  # Build-backend object for building RenderCV
 [project]
 # Metadata about RenderCV.
 name = "rendercv"
-version = "2.8"
+version = "2.8.1"
 description = "Resume builder for academics and engineers"
 readme = "README.md"
 requires-python = ">=3.12"
